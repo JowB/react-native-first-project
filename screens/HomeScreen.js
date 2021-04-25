@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Text, View, FlatList, StyleSheet, ActivityIndicator} from 'react-native';
+import {Text, View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity} from 'react-native';
 
 const HomeScreen = ({navigation}) => {
     const [isLoading, setLoading] = useState(true);
@@ -15,6 +15,13 @@ const HomeScreen = ({navigation}) => {
 
     return (
         <View>
+            <TouchableOpacity
+                style={styles.btn}
+                onPress={() => {
+                    navigation.navigate('Camera')
+                }}>
+                <Text style={styles.btnText}>Prendre une photo</Text>
+            </TouchableOpacity>
             {isLoading ? <ActivityIndicator /> : (
                 <FlatList
                     data={data}
@@ -38,6 +45,21 @@ const styles = StyleSheet.create({
         padding: 10,
         fontSize: 78,
     },
+    btn: {
+        height: 30,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
+        backgroundColor: '#0f3ac2',
+        width: 200,
+        marginLeft: '25%',
+        marginTop: 25
+    },
+    btnText: {
+        fontSize: 16,
+        color: 'white'
+    }
 });
 
 export default HomeScreen;
