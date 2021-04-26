@@ -1,26 +1,42 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {StyleSheet, Text, View, TouchableOpacity, FlatList, Image, Alert} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, FlatList, Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Camera} from "expo-camera";
 import {Icon} from "react-native-elements";
 import * as MediaLibrary from 'expo-media-library';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CameraScreen = () => {
     const [hasPermission, setHasPermission] = useState(null);
     const [type, setType] = useState(Camera.Constants.Type.back);
     const [photos, setPhotos] = useState([]);
-    const [icon, setIcon] = useState(['cloud-upload', 'red'])
     const ref = useRef(null);
 
     const _takePhoto = async () => {
         const photo = await ref.current.takePictureAsync();
-        photo['id'] = 1;
-        setPhotos([photo, ...photos]);
+        let newObject = {
+            id: reformatId(photo.uri),
+            isSaved: false,
+            data: photo
+        }
+        setPhotos([newObject, ...photos]);
+        AsyncStorage.setItem('pictures', JSON.stringify([newObject, ...photos]));
+    }
+
+    // Transforme l'uri en tableau pour mettre le nom de la photo en id
+    const reformatId = (uri) => {
+        const uriToArray = uri.split('/');
+        return uriToArray[uriToArray.length - 1];
     }
 
     useEffect(() => {
         (async () => {
             const {status} = await Camera.requestPermissionsAsync();
             setHasPermission(status === 'granted');
+
+            const jsonValue = await AsyncStorage.getItem('pictures');
+            if (jsonValue != null) {
+                setPhotos(JSON.parse(jsonValue));
+            }
         })();
     }, []);
 
@@ -29,6 +45,27 @@ const CameraScreen = () => {
     }
     if (hasPermission === false) {
         return <Text>No access to camera</Text>;
+    }
+
+    const savePicture = (item) => {
+        MediaLibrary.saveToLibraryAsync(item.data.uri)
+            .catch(() => {
+                Alert.alert('Echec de la sauvegarde');
+            })
+            .finally(() => {
+                Alert.alert('La photo à bien été enregistré');
+            });
+
+        let newArrayPhotos = [];
+        photos.map((img) => {
+            if (item.id === img.id) {
+                img.isSaved = true;
+            }
+            newArrayPhotos.push(img);
+        })
+
+        setPhotos(newArrayPhotos);
+        AsyncStorage.setItem('pictures', JSON.stringify(newArrayPhotos));
     }
 
     return (
@@ -67,25 +104,18 @@ const CameraScreen = () => {
             {photos.length === 0 ? null : (
                 <FlatList
                     data={photos}
-                    renderItem={({item}) => <TouchableOpacity style={{zIndex: 1, position: 'relative'}} onPress={() => {
-                        MediaLibrary.saveToLibraryAsync(item.uri)
-                            .catch(() => {
-                                Alert.alert('Echec de la sauvegarde');
-                            })
-                            .finally(() => {
-                                Alert.alert('La photo à bien été enregistré');
-                                setIcon(['check', 'green']);
-                            });
-                    }}>
+                    renderItem={({item}) => <TouchableOpacity style={{zIndex: 1, position: 'relative'}}
+                                                              onPress={() => savePicture(item)}>
                         <Image
-                            source={item}
+                            source={item.data}
                             style={styles.img}
                             resizeMode={'cover'}
                         />
-                        <Icon name={icon[0]} type='font-awesome' color={icon[1]} size={15}/>
+                        <Icon name={item.isSaved ? 'check' : 'cloud-upload'} type='font-awesome'
+                              color={item.isSaved ? 'green' : 'red'} size={15}/>
                     </TouchableOpacity>
                     }
-                    keyExtractor={item => 'id :' + item.uri}
+                    keyExtractor={item => 'id :' + item.id}
                     horizontal={true}
                 />
             )}
